@@ -3,7 +3,7 @@ import calendar
 import datetime
 
 
-def CheckDataConsistency(fo_object, mo_object):
+def CheckDataConsistency(fo_object, mo_object, overwrite=False):
     date = datetime.datetime.utcnow()
     utc_time = calendar.timegm(date.utctimetuple())
 
@@ -19,7 +19,7 @@ def CheckDataConsistency(fo_object, mo_object):
                 result = result_out
                 fo_object.SetFileContent(result_out)
                 print("Writing the results from cURL to segment_info.txt file...")
-                fo_object.WriteFile()
+                fo_object.AppendToFile() if overwrite else fo_object.WriteFile()
 
             else:
                 print("File is up-to-date, reading from file...")
@@ -31,7 +31,7 @@ def CheckDataConsistency(fo_object, mo_object):
             result = result_out
             fo_object.SetFileContent(result_out)
             print("Writing the results from cURL to segment_info.txt file...")
-            fo_object.WriteFile()
+            fo_object.AppendToFile() if overwrite else fo_object.WriteFile()
     else:
         print("File does not exist, sending cURL request...")
         [result_out, result_err,
@@ -39,6 +39,6 @@ def CheckDataConsistency(fo_object, mo_object):
         result = result_out
         fo_object.SetFileContent(result_out)
         print("Writing the results from cURL to segment_info.txt file...")
-        fo_object.WriteFile()
+        fo_object.AppendToFile() if overwrite else fo_object.WriteFile()
 
     return result
