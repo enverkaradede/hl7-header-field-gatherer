@@ -29,6 +29,9 @@ class FileOps:
         return os.path.exists(self.file_name)
 
     def WriteFile(self):
+        from pathlib import Path
+        path = Path(self.file_location)
+        path.parent.mkdir(parents=True, exist_ok=True) 
         with open(self.file_location, "w", encoding="utf-8") as file:
             file.write(self.file_content)
 
