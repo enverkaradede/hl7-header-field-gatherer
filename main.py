@@ -6,7 +6,29 @@ from utils.file_operations import FileOps
 from utils.web_operations import WebOps
 from utils.miscellaneous_operations import MiscOps
 from utils.data_consistency_checker import CheckDataConsistency
+from utils.database import Database
 
+database = Database()
+
+db_name = 'hl7'
+
+database.SetDbName(f'{db_name}.db')
+conn = database.Connect()
+database.SetConn(conn)
+
+sql = 'PRAGMA foreign_keys = ON'
+database.SetQuery(sql)
+database.ExecuteQuery()
+
+sql = 'CREATE TABLE IF NOT EXISTS versions(id TEXT PRIMARY KEY)'
+database.SetQuery(sql)
+database.ExecuteQuery()
+print('versions database is created!')
+
+sql = 'CREATE TABLE IF NOT EXISTS segments(id INTEGER PRIMARY KEY AUTOINCREMENT, segment_name TEXT, fields TEXT, version TEXT, FOREIGN KEY (version) REFERENCES versions (id))'
+database.SetQuery(sql)
+database.ExecuteQuery()
+print(f'segments table is created!')
 
 hl7_version_list = ['2.2', '2.3', '2.3.1', '2.4', '2.5', '2.5.1', '2.6', '2.7', '2.7.1', '2.8']
 
@@ -17,6 +39,14 @@ from_request_mo = MiscOps()
 from_segment_results_fo = FileOps()
 
 for version in hl7_version_list:
+    sql = 'INSERT OR IGNORE INTO versions(id) VALUES(?)'
+    database.SetQuery(sql)
+    args = (version,)
+    database.SetArgs(args)
+
+    database.ExecuteParameterizedQuery()
+    print(f'New record inserted into versions table for version {version}')
+
     print(f'Fetching data for HL7 v{version}...')
     curl_command = f'curl https://hl7-definition.caristix.com/v2-api/1/HL7v{version}/Segments'
 
@@ -59,6 +89,7 @@ for version in hl7_version_list:
     fields_result_dictionary = {}
 
     for segment in segment_names_list:
+        sql = 'CREATE TABLE IF NOT EXISTS segments(id INTEGER PRIMARY KEY AUTOINCREMENT, segment_name TEXT,)'
         curl_field_command = f"curl https://hl7-definition.caristix.com/v2-api/1/HL7v{version}/Segments/{segment}"
         from_field_request_mo.SetCommand(curl_field_command.split())
         print(f"Getting the field definitions for {segment} segment...")
@@ -80,6 +111,15 @@ for version in hl7_version_list:
         from_field_request_fo.SetFileContent(
             f"const {segment.lower()}InfoArr = {str(json.dumps(fields_result_dictionary[segment], indent=4))}\n\nmodule.exports = {{\n{segment.lower()}InfoArr,\n}}")
         from_field_request_fo.WriteFile()
+
+        sql = 'INSERT OR IGNORE INTO segments(segment_name, fields, version) VALUES(?, ?, ?)'
+        database.SetQuery(sql)
+        args = (segment, str(json.dumps(fields_result_dictionary[segment], indent=4)), version)
+        database.SetArgs(args)
+        database.ExecuteParameterizedQuery()
+
+        print(f'Segment and fields information is inserted into segments table for {segment} segment for v{version}')
+
     print(f"All field dictionaries are completed for HL7 v{version}...")
 
 
@@ -91,3 +131,6 @@ for version in hl7_version_list:
     print(
         f"Writing the dictionary info to {from_field_request_fo.GetFileLocation()}")
     from_field_request_fo.WriteFile()
+
+database.Close()
+print('database connection is closed')
